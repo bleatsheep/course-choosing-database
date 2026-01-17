@@ -67,7 +67,7 @@ create table course_credits
 /*==============================================================*/
 create table course_section
 (
-   section_id           int not null  comment '',
+   section_id           int not null AUTO_INCREMENT  comment '',
    term_id              int  comment '',
    teacher_id           int  comment '',
    subject_id           int  comment '',
@@ -236,3 +236,94 @@ CREATE TABLE password_t (
 );
 
 Insert into password_t (account, psw, role) VALUES ('admin', 'admin', 2);
+
+
+SET foreign_key_checks = 0;
+
+
+CREATE TABLE IF NOT EXISTS system_log (
+    log_id INT AUTO_INCREMENT PRIMARY KEY,
+    log_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    action_type VARCHAR(20),      -- INSERT, UPDATE, DELETE
+    table_name VARCHAR(50),       -- 操作了哪张表
+    record_id VARCHAR(50),        -- 受影响记录的主键ID
+    details TEXT                  -- 详细信息（存旧值或新值）
+);
+
+DROP TRIGGER IF EXISTS trig_student_insert;
+
+DELIMITER $$
+
+CREATE TRIGGER trig_student_insert
+AFTER INSERT ON student
+FOR EACH ROW
+BEGIN
+    INSERT INTO system_log (action_type, table_name, record_id, details)
+    VALUES ('INSERT', 'student', NEW.stu_id, CONCAT('新增学生: ', NEW.stu_name, ' (', NEW.stu_number, ')'));
+END$$
+
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS trig_student_delete;
+
+DELIMITER $$
+
+CREATE TRIGGER trig_student_delete
+AFTER DELETE ON student
+FOR EACH ROW
+BEGIN
+    INSERT INTO system_log (action_type, table_name, record_id, details)
+    VALUES ('DELETE', 'student', OLD.stu_id, CONCAT('删除学生: ', OLD.stu_name, ' (', OLD.stu_number, ')'));
+END$$
+
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS trig_student_update;
+
+DELIMITER $$
+
+CREATE TRIGGER trig_student_update
+AFTER UPDATE ON student
+FOR EACH ROW
+BEGIN
+    -- 只有当关键信息变动时才记录
+    IF OLD.stu_name != NEW.stu_name OR OLD.admin_class_id != NEW.admin_class_id THEN
+        INSERT INTO system_log (action_type, table_name, record_id, details)
+        VALUES ('UPDATE', 'student', NEW.stu_id, 
+                CONCAT('修改学生信息: ', OLD.stu_name, ' -> ', NEW.stu_name));
+    END IF;
+END$$
+
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS check_capacity_before_insert;
+
+DELIMITER $$
+
+CREATE TRIGGER check_capacity_before_insert
+BEFORE INSERT ON student_course_choice
+FOR EACH ROW
+BEGIN
+    -- 定义两个变量：最大容量、当前已选人数
+    DECLARE max_cap INT;
+    DECLARE curr_count INT;
+    
+    -- 1. 获取该课程的最大容量 (从 course_section 表)
+    SELECT max_student INTO max_cap 
+    FROM course_section 
+    WHERE section_id = NEW.session_id;
+    
+    -- 2. 实时计算当前已选人数 (从 student_course_choice 表)
+    SELECT COUNT(*) INTO curr_count 
+    FROM student_course_choice 
+    WHERE session_id = NEW.session_id;
+    
+    -- 3. 比较：如果 (当前人数 >= 最大容量)，则报错拦截
+    IF curr_count >= max_cap THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Error: Course is full (Trigger denied)';
+    END IF;
+
+END$$
+
+DELIMITER ;
