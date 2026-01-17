@@ -94,15 +94,22 @@ create table department
 /*==============================================================*/
 /* Table: section_schedule                                      */
 /*==============================================================*/
+
+
 create table section_schedule
 (
-   class_day            date  comment '',
-   start_time           time  comment '',
-   end_time             time  comment '',
-   session_number       int not null  comment '',
-   section_id           int not null  comment '',
-   comment              varchar(300)  comment '',
-   primary key (session_number, section_id)
+   schedule_id          int auto_increment primary key,  -- 新增自增主键，方便管理
+   section_id           int not null,                    -- 关联课程班级
+   class_day            date,                            -- 上课日期
+   period_start         int,                             -- 起始节次 (1-11)
+   period_end           int,                             -- 结束节次 (1-11)
+   start_time           time,                            -- 具体开始时间 (自动计算)
+   end_time             time,                            -- 具体结束时间 (自动计算)
+   comment              varchar(300),                    -- 教室或其他备注
+   
+   -- 外键约束
+   constraint FK_SCHEDULE_SECTION foreign key (section_id)
+      references course_section (section_id) on delete cascade on update restrict
 );
 
 /*==============================================================*/
