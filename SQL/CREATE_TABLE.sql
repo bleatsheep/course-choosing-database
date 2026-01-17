@@ -132,7 +132,7 @@ create table student
    stu_id               int not null  comment '',
    admin_class_id       int  comment '',
    stu_name             varchar(50)  comment '',
-   stu_number           char(10)  comment '',
+   stu_number           char(10) unique comment '',
    comment              varchar(300)  comment '',
    primary key (stu_id)
 );
@@ -183,7 +183,7 @@ create table teacher
    teacher_id           int not null  comment '',
    dprt_id              int  comment '',
    title                varchar(30)  comment '',
-   teacher_number       char(10)  comment '',
+   teacher_number       char(10) unique comment '',
    comment              varchar(300)  comment '',
    primary key (teacher_id)
 );
